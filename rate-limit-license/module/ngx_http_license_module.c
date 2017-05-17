@@ -15,14 +15,15 @@ static ngx_int_t ngx_http_license_handler(ngx_http_request_t *r);
 static ngx_int_t ngx_http_license_init(ngx_conf_t *cf);
 static void *    ngx_http_license_create_loc_conf(ngx_conf_t *cf);
 static char *    ngx_http_license_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child);
+static char *    ngx_conf_license_init(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 
 static ngx_command_t ngx_http_license_module_commands[] = {
   {
     ngx_string("license"),
     NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
-    ngx_conf_set_num_slot,
+    ngx_conf_license_init,
     NGX_HTTP_LOC_CONF_OFFSET,
-    offsetof(ngx_http_license_loc_conf_t, rate),
+    0,
     NULL
   }
 };
@@ -52,6 +53,31 @@ ngx_module_t ngx_http_license_module = {
   NULL,                            /* exit master */
   NGX_MODULE_V1_PADDING
 };
+
+char* ngx_conf_license_init(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+  ngx_http_license_loc_conf_t* p = conf;
+  ngx_str_t        *value;
+
+  if (p->rate != NGX_CONF_UNSET_UINT) {
+    ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "License is duplicated");
+
+    return NGX_CONF_ERROR;
+  }
+
+  value = cf->args->elts;
+  p->rate = ngx_atoi(value[1].data, value[1].len);
+
+  if ((ngx_int_t)p->rate == NGX_ERROR) {
+    ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                       "invalid value in license configuration: \"%s\"", value[1].data);
+
+    return NGX_CONF_ERROR;
+  }
+
+  return NGX_CONF_OK;
+}
+
 
 static ngx_int_t ngx_http_license_handler(ngx_http_request_t *r)
 {
